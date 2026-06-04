@@ -56,28 +56,14 @@ if hasattr(nn, 'SiLU'):
 else:
     # For compatibility with old PyTorch versions
     class Swish(nn.Module):
-        def forward(self, x):
-            return x * torch.sigmoid(x)
 
 
 # A memory-efficient implementation of Swish function
 class SwishImplementation(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, i):
-        result = i * torch.sigmoid(i)
-        ctx.save_for_backward(i)
-        return result
 
-    @staticmethod
-    def backward(ctx, grad_output):
-        i = ctx.saved_tensors[0]
-        sigmoid_i = torch.sigmoid(i)
-        return grad_output * (sigmoid_i * (1 + i * (1 - sigmoid_i)))
 
 
 class MemoryEfficientSwish(nn.Module):
-    def forward(self, x):
-        return SwishImplementation.apply(x)
 
 
 def round_filters(filters, global_params):
@@ -233,16 +219,6 @@ class Conv2dDynamicSamePadding(nn.Conv2d):
         super().__init__(in_channels, out_channels, kernel_size, stride, 0, dilation, groups, bias)
         self.stride = self.stride if len(self.stride) == 2 else [self.stride[0]] * 2
 
-    def forward(self, x):
-        ih, iw = x.size()[-2:]
-        kh, kw = self.weight.size()[-2:]
-        sh, sw = self.stride
-        oh, ow = math.ceil(ih / sh), math.ceil(iw / sw)  # change the output size according to stride ! ! !
-        pad_h = max((oh - 1) * self.stride[0] + (kh - 1) * self.dilation[0] + 1 - ih, 0)
-        pad_w = max((ow - 1) * self.stride[1] + (kw - 1) * self.dilation[1] + 1 - iw, 0)
-        if pad_h > 0 or pad_w > 0:
-            x = F.pad(x, [pad_w // 2, pad_w - pad_w // 2, pad_h // 2, pad_h - pad_h // 2])
-        return F.conv2d(x, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
 
 
 class Conv2dStaticSamePadding(nn.Conv2d):
@@ -270,10 +246,6 @@ class Conv2dStaticSamePadding(nn.Conv2d):
         else:
             self.static_padding = nn.Identity()
 
-    def forward(self, x):
-        x = self.static_padding(x)
-        x = F.conv2d(x, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
-        return x
 
 
 def get_same_padding_maxPool2d(image_size=None):
@@ -286,10 +258,7 @@ def get_same_padding_maxPool2d(image_size=None):
     Returns:
         MaxPool2dDynamicSamePadding or MaxPool2dStaticSamePadding.
     """
-    if image_size is None:
-        return MaxPool2dDynamicSamePadding
-    else:
-        return partial(MaxPool2dStaticSamePadding, image_size=image_size)
+    pass
 
 
 class MaxPool2dDynamicSamePadding(nn.MaxPool2d):
@@ -303,17 +272,6 @@ class MaxPool2dDynamicSamePadding(nn.MaxPool2d):
         self.kernel_size = [self.kernel_size] * 2 if isinstance(self.kernel_size, int) else self.kernel_size
         self.dilation = [self.dilation] * 2 if isinstance(self.dilation, int) else self.dilation
 
-    def forward(self, x):
-        ih, iw = x.size()[-2:]
-        kh, kw = self.kernel_size
-        sh, sw = self.stride
-        oh, ow = math.ceil(ih / sh), math.ceil(iw / sw)
-        pad_h = max((oh - 1) * self.stride[0] + (kh - 1) * self.dilation[0] + 1 - ih, 0)
-        pad_w = max((ow - 1) * self.stride[1] + (kw - 1) * self.dilation[1] + 1 - iw, 0)
-        if pad_h > 0 or pad_w > 0:
-            x = F.pad(x, [pad_w // 2, pad_w - pad_w // 2, pad_h // 2, pad_h - pad_h // 2])
-        return F.max_pool2d(x, self.kernel_size, self.stride, self.padding,
-                            self.dilation, self.ceil_mode, self.return_indices)
 
 
 class MaxPool2dStaticSamePadding(nn.MaxPool2d):
@@ -340,11 +298,6 @@ class MaxPool2dStaticSamePadding(nn.MaxPool2d):
         else:
             self.static_padding = nn.Identity()
 
-    def forward(self, x):
-        x = self.static_padding(x)
-        x = F.max_pool2d(x, self.kernel_size, self.stride, self.padding,
-                         self.dilation, self.ceil_mode, self.return_indices)
-        return x
 
 
 ################################################################################
@@ -408,19 +361,7 @@ class BlockDecoder(object):
         Returns:
             block_string: A String form of BlockArgs.
         """
-        args = [
-            'r%d' % block.num_repeat,
-            'k%d' % block.kernel_size,
-            's%d%d' % (block.strides[0], block.strides[1]),
-            'e%s' % block.expand_ratio,
-            'i%d' % block.input_filters,
-            'o%d' % block.output_filters
-        ]
-        if 0 < block.se_ratio <= 1:
-            args.append('se%s' % block.se_ratio)
-        if block.id_skip is False:
-            args.append('noskip')
-        return '_'.join(args)
+        pass
 
     @staticmethod
     def decode(string_list):
@@ -448,10 +389,7 @@ class BlockDecoder(object):
         Returns:
             block_strings: A list of strings, each string is a notation of block.
         """
-        block_strings = []
-        for block in blocks_args:
-            block_strings.append(BlockDecoder._encode_block_string(block))
-        return block_strings
+        pass
 
 
 def efficientnet_params(model_name):
